@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use Cloudinary\Cloudinary;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CategoryController extends Controller
 {
@@ -25,15 +27,22 @@ class CategoryController extends Controller
             'name' => 'required',
             'slug' => 'required|unique:categories',
             'description' => 'required',
-            'parent_id' => 'nullable|integer',
-            'count' => 'nullable|integer',
-            'image_url' => 'nullable|url',
-        ]);
 
+            'count' => 'nullable|integer',
+            'image_cloudinary' => 'nullable|url',
+        ]);
+        if ($request->hasFile('image')) {
+            $cloudinary = new Cloudinary();
+            $uploadUrl = $cloudinary->uploadApi()->upload(
+                $request->file('image')->getRealPath()
+            );
+            $validatedData['image_cloudinary'] = $uploadUrl['secure_url'];
+        }
         $category = Category::create($validatedData);
 
         return response()->json(['message' => 'Category created successfully', 'category' => $category], 201);
     }
+
 
     /**
      * Display the specified resource.
@@ -46,22 +55,33 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Category $category)
+    public function update(Request $request, $id)
     {
+        $category = Category::findOrFail($id);
+
         $validatedData = $request->validate([
             'name' => 'required',
             'slug' => 'required|unique:categories,slug,' . $category->id,
             'description' => 'required',
-            'parent_id' => 'nullable|integer',
             'count' => 'nullable|integer',
-            'image_url' => 'nullable|url',
+            'image_cloudinary' => 'nullable|url',
         ]);
 
+        if ($request->hasFile('image')) {
+            $cloudinary = new Cloudinary();
+
+            $uploadUrl = $cloudinary->uploadApi()->upload(
+                $request->file('image')->getRealPath()
+            );
+
+            $validatedData['image_cloudinary'] = $uploadUrl['secure_url'];
+        }
+
         $category->update($validatedData);
+        Log::debug('Validated data before image upload: ', $validatedData);
 
         return response()->json(['message' => 'Category updated successfully', 'category' => $category], 200);
     }
-
     public function fetchRandomCategories()
     {
         $categories = Category::inRandomOrder()->limit(4)->get();
