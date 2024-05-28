@@ -38,6 +38,8 @@ class CategoryController extends Controller
             );
             $validatedData['image_cloudinary'] = $uploadUrl['secure_url'];
         }
+        Log::info('Validated data before image upload: ', $validatedData);
+
         $category = Category::create($validatedData);
 
         return response()->json(['message' => 'Category created successfully', 'category' => $category], 201);
