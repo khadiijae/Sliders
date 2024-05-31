@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'id_product',
         'id',
         'store_id',
         'name',
@@ -52,18 +51,18 @@ class Product extends Model
         'review_count'
     ];
 
-    protected $primaryKey = 'id_product';
+    // protected $primaryKey = 'id_product';
 
     public $timestamps = false;
     public function product_images()
-{
-    return $this->hasMany(ProductImage::class, 'product_id');
-}
-
-public function store()
     {
-        return $this->belongsTo(Store::class, 'store_id');
+        return $this->hasMany(ProductImage::class, 'product_id');
     }
 
- 
+    // public function store()
+    //     {
+    //         return $this->belongsTo(Store::class, 'store_id');
+    //     }
+
+
 }

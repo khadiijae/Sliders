@@ -14,7 +14,8 @@ class Category extends Model
         'description',
 
         'count',
-        'image_cloudinary'
+        'image_cloudinary',
+        'image_public_id'
 
     ];
 }

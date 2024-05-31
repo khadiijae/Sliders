@@ -28,6 +28,12 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+
+    'aliases' => [
+        // ...
+        'Cloudinary' => CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::class,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

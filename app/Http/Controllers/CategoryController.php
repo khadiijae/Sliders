@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use Cloudinary\Cloudinary;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -23,27 +23,35 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
-            'name' => 'required',
-            'slug' => 'required|unique:categories',
+        $validateRequest = $request->validate([
+            'name' => ['required', 'max:255'],
+            'slug' => ['required', 'max:255'],
             'description' => 'required',
-
-            'count' => 'nullable|integer',
-            'image_cloudinary' => 'nullable|url',
+            'count' => ['required', 'integer'],
+            'image' => ['required', 'image', 'max:2048'],
         ]);
-        if ($request->hasFile('image')) {
-            $cloudinary = new Cloudinary();
-            $uploadUrl = $cloudinary->uploadApi()->upload(
-                $request->file('image')->getRealPath()
-            );
-            $validatedData['image_cloudinary'] = $uploadUrl['secure_url'];
-        }
-        Log::info('Validated data before image upload: ', $validatedData);
 
-        $category = Category::create($validatedData);
+        $cloudinaryImage = $request->file('image')->storeOnCloudinary('categories');
+        $url = $cloudinaryImage->getSecurePath();
+        $public_id = $cloudinaryImage->getPublicId();
 
-        return response()->json(['message' => 'Category created successfully', 'category' => $category], 201);
+        $category = Category::create([
+            'name' => $request->name,
+            'slug' => $request->slug,
+            'description' => $request->description,
+            'count' => $request->count,
+            'image_cloudinary' => $url,
+            'image_public_id' => $public_id,
+        ]);
+
+        return response()->json([
+            'message' => 'Category created successfully',
+            'category' => $category
+        ], 201);
     }
+
+
+
 
 
     /**
@@ -59,30 +67,43 @@ class CategoryController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Find the category or fail if not found
         $category = Category::findOrFail($id);
 
+        // Validate the incoming request data
         $validatedData = $request->validate([
-            'name' => 'required',
-            'slug' => 'required|unique:categories,slug,' . $category->id,
+            'name' => ['required', 'max:255'],
+            'slug' => ['required', 'max:255'],
             'description' => 'required',
-            'count' => 'nullable|integer',
-            'image_cloudinary' => 'nullable|url',
+            'count' => ['required', 'integer'],
+            'image' => ['image', 'max:2048'],
         ]);
 
         if ($request->hasFile('image')) {
-            $cloudinary = new Cloudinary();
+            if ($category->image_public_id) {
+                Cloudinary::destroy($category->image_public_id); //?delete old image
+            }
+            $cloudinaryImage = $request->file('image')->storeOnCloudinary('categories');
+            $url = $cloudinaryImage->getSecurePath();
+            $public_id = $cloudinaryImage->getPublicId();
 
-            $uploadUrl = $cloudinary->uploadApi()->upload(
-                $request->file('image')->getRealPath()
-            );
-
-            $validatedData['image_cloudinary'] = $uploadUrl['secure_url'];
+            $category->image_cloudinary = $url;
+            $category->image_public_id = $public_id;
         }
 
-        $category->update($validatedData);
-        Log::debug('Validated data before image upload: ', $validatedData);
+        $category->name = $validatedData['name'];
+        $category->slug = $validatedData['slug'];
+        $category->description = $validatedData['description'];
+        $category->count = $validatedData['count'];
 
-        return response()->json(['message' => 'Category updated successfully', 'category' => $category], 200);
+        $category->save();
+
+        Log::debug($validatedData);
+
+        return response()->json([
+            'message' => 'Category updated successfully',
+            'category' => $category
+        ], 200);
     }
     public function fetchRandomCategories()
     {

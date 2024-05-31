@@ -2,33 +2,167 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use Carbon\Carbon;
 use App\Models\Cart;
-
+use App\Models\Order;
 use App\Models\Product;
+use Illuminate\Support\Str;
+use App\Models\ProductImage;
+use Illuminate\Http\Request;
+use App\Models\OrderLineItem;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use App\Models\ShippingAddressClient;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
+
+
 class CartController extends Controller
 {
-    public function store(Request $request)
+
+
+    public function createOrder(Request $request)
     {
-        // Valider les données entrantes
-        $request->validate([
-            'product_id' => 'required|integer',
-            'quantity' => 'required|integer',
-            'user_ip' => 'required|ip',
+        // Validate request data
+        $validated = $request->validate([
+            'fname' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'city' => 'required|string|max:255',
+
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:20',
+            'notes' => 'nullable|string',
+            'paymentMethod' => 'required|string',
+            'items' => 'required|array',
         ]);
 
-        // Rechercher un élément existant dans le panier avec la même adresse IP et le même ID de produit
-        $existingCart = Cart::where('product_id', $request->product_id)
-                            ->where('user_ip', $request->user_ip)
-                            ->first();
+        // Create shipping address
+        $shippingAddress = ShippingAddressClient::create([
+            'customer_id' => auth()->id(), // assuming the customer is authenticated
+            'first_name' => $validated['fname'],
+            'address_1' => $validated['address'],
+            'address_2' => null, // assuming no address_2
+            'city' => $validated['city'],
+            'country' => 'MA',
+            'phone' => $validated['phone'],
+        ]);
 
-        if ($existingCart) {
-            // Si un élément existe déjà, mettez à jour la quantité
-            $existingCart->update([
-                'quantity' => $existingCart->quantity + $request->quantity,
+        // Create order
+        $order = Order::create([
+            'status' => 'pending',
+            'currency' => 'MAD',
+            'version' => '1.0',
+            'prices_include_tax' => false,
+            'date_created' => Carbon::now(),
+            'date_modified' => Carbon::now(),
+            'discount_total' => 0, // assuming no discount
+            'discount_tax' => 0, // assuming no discount tax
+            'shipping_total' => 0, // assuming free shipping
+            'shipping_tax' => 0, // assuming no shipping tax
+            'cart_tax' => 0, // assuming no cart tax
+            'total' => 0, // will be updated later
+            'total_tax' => 0, // assuming no tax
+            'customer_id' => auth()->id(),
+            'order_key' => Str::random(12),
+            'payment_method' => $validated['paymentMethod'],
+            'payment_method_title' => ucfirst($validated['paymentMethod']),
+            'transaction_id' => null, // will be updated later if needed
+            'customer_ip_address' => $request->ip(),
+            'customer_user_agent' => $request->header('User-Agent'),
+            'created_via' => 'web',
+            'customer_note' => $validated['notes'],
+            'cart_hash' => null,
+            'number' => 11111,
+            'payment_url' => null,
+            'is_editable' => true,
+            'needs_payment' => true,
+            'needs_processing' => true,
+            'date_created_gmt' => Carbon::now(),
+            'date_modified_gmt' => Carbon::now(),
+        ]);
+
+        // Initialize total amount
+        $totalAmount = 0;
+
+        // Create order line items
+        foreach ($validated['items'] as $item) {
+            $product = $item['product'][0]; // Assuming product is nested
+
+            $lineItem = OrderLineItem::create([
+                'order_id' => $order->id,
+                'item_id' => $item['cart_item']['id'],
+                'name' => $product['name'],
+                'product_id' => $product['id'],
+                'variation_id' => 0, // assuming no variation
+                'quantity' => $item['cart_item']['quantity'],
+                'subtotal' => $product['price'] * $item['cart_item']['quantity'],
+                'subtotal_tax' => 0, // assuming no tax
+                'total' => $product['price'] * $item['cart_item']['quantity'],
+                'total_tax' => 0, // assuming no tax
+                'sku' => $product['sku'] ?? null, // assuming sku is optional
+                'price' => $product['price'],
+                'image_url' => $product['image_url'] ?? null, // assuming image_url is optional
+                'parent_name' => null, // assuming no parent
             ]);
 
-            // Retourner la réponse JSON
+            // Add to total amount
+            $totalAmount += $lineItem->total;
+        }
+
+        // Update order total
+        $order->total = $totalAmount;
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'order' => $order,
+        ], 201);
+    }
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|integer',
+            'quantity' => 'required|integer',
+        ]);
+
+        $customerId = null;
+        $userIp = null;
+
+        try {
+            //authenticate user with tokn
+            $user = JWTAuth::parseToken()->authenticate();
+        } catch (JWTException $e) {
+            $user = null;
+        }
+
+        if ($user) {
+            $customerId = $user->id;
+            Log::info($customerId);
+        } else {
+            //   get the user's ipaddress
+            $response = Http::get('https://api.ipify.org?format=json');
+            $ipData = $response->json();
+            $userIp = $ipData['ip'];
+        }
+
+        // Rechercher un élément existant dans le panier avec la même adresse IP et le même ID de produit
+        $existingCart = Cart::where('product_id', $validated['product_id'])
+            ->where(function ($query) use ($customerId, $userIp) {
+                if ($customerId) {
+                    $query->where('customer_id', $customerId);
+                } else {
+                    $query->where('user_ip', $userIp);
+                }
+            })
+            ->first();
+
+        if ($existingCart) {
+            // Update  quantity of existing cartitem
+            $existingCart->update([
+                'quantity' => $existingCart->quantity + $validated['quantity'],
+            ]);
+
             return response()->json([
                 'message' => 'La quantité du produit a été mise à jour dans le panier avec succès',
                 'cart' => $existingCart,
@@ -37,45 +171,67 @@ class CartController extends Controller
 
         // Créer une nouvelle entrée de panier si aucun élément avec la même adresse IP et le même ID de produit n'existe
         $cart = Cart::create([
-            'product_id' => $request->product_id,
-            'quantity' => $request->quantity,
-            'user_ip' => $request->user_ip,
+            'product_id' => $validated['product_id'],
+            'quantity' => $validated['quantity'],
+            'customer_id' => $customerId,
+            'user_ip' => $userIp,
         ]);
 
-        // Retourner la réponse JSON
+        Log::info('Cart details: ', $cart->toArray());
+
         return response()->json([
             'message' => 'Produit ajouté au panier avec succès',
             'cart' => $cart,
         ], 201);
     }
-    
-      public function getPanierData(Request $request)
+
+
+
+
+    public function getPanierData(Request $request)
     {
-        // Valider l'adresse IP
-        $request->validate([
-            'user_ip' => 'required|ip',
-        ]);
+        $userIp = null;
+        $customerId = null;
+        $cartItems = collect();
 
-        // Récupérer les éléments du panier
-        $cartItems = Cart::where('user_ip', $request->user_ip)->get();
+        try {
+            //authenticate user with tokn
+            $user = JWTAuth::parseToken()->authenticate();
+        } catch (JWTException $e) {
+            $user = null;
+        }
 
-        // Tableau pour stocker les données du panier
+        if ($user) {
+            // If the user is authenticated, get the customer ID
+            $customerId = $user->id;
+
+            //cartitems authenticated user
+            $cartItems = Cart::where('customer_id', $customerId)->get();
+        } else {
+            $request->validate([
+                'user_ip' => 'required|ip',
+            ]);
+            $userIp = $request->user_ip;
+
+            //using  ipddress
+            $cartItems = Cart::where('user_ip', $userIp)->get();
+        }
+
+
         $cartData = [];
 
-        // Pour chaque élément du panier
+
         foreach ($cartItems as $cartItem) {
-            // Récupérer les informations du produit
-            $product = Product::where("id",intval($cartItem->product_id))->limit(1)->get();
-           
+            // product info
+            $product = Product::find($cartItem->product_id);
 
-            // Vérifier si le produit existe
+            //product exists
             if ($product) {
-                  $product->each(function ($p) {
-        // Charger les images associées à ce produit
-        $p->load('product_images');
-    });
+                //  product images
+                $images = ProductImage::where('product_id', $product->id)->get();
+                $product->product_images = $images;
 
-                // Ajouter les données du produit au tableau du panier
+                // Add the cartitem and productdata to the array
                 $cartData[] = [
                     'cart_item' => $cartItem,
                     'product' => $product,
@@ -83,7 +239,6 @@ class CartController extends Controller
             }
         }
 
-        // Retourner les données du panier sous forme de réponse JSON
         return response()->json([
             'message' => 'Données du panier récupérées avec succès',
             'cart_items' => $cartData,

@@ -1,19 +1,66 @@
 <?php
 
-use App\Http\Controllers\CategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\SliderController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductimageController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::apiResource('/categories', App\http\Controllers\CategoryController::class);
+Route::controller(AuthController::class)->group(function () {
+    Route::post('login', 'login');
+    Route::post('register', 'register');
+    Route::post('logout', 'logout');
+    Route::post('refresh', 'refresh');
+});
+
+/*
+Route::middleware('auth:api')->group(function () {
+    // Category routes
+    Route::apiResource('/categories', CategoryController::class);
+    Route::post('/categories/{id}', [CategoryController::class, 'update']);
+
+    // Product routes
+    Route::apiResource('/products', ProductController::class);
+
+    // Product image routes
+    Route::apiResource('/productsimage', ProductimageController::class);
+    Route::post('/productsimage/{id}', [ProductimageController::class, 'update']);
+
+    // Vendor routes
+    // Route::apiResource('/vendors', VendorController::class);
+
+    // Slider routes
+    Route::apiResource('/sliders', SliderController::class);
+    Route::post('/sliders/{id}', [SliderController::class, 'update']);
+});
+*/
+Route::apiResource('/categories', CategoryController::class);
 Route::post('/categories/{id}', [CategoryController::class, 'update']);
 
-Route::apiResource('/products', App\http\Controllers\ProductController::class);
-Route::apiResource('/vendors', App\http\Controllers\VendorController::class);
+// Product routes
+Route::apiResource('/products', ProductController::class);
+Route::post('/products/{id}', [ProductController::class, 'update']);
 
-Route::apiResource('/sliders', App\http\Controllers\SliderController::class);
+// Product image routes
+Route::apiResource('/productsimage', ProductimageController::class);
+Route::post('/productsimage/{id}', [ProductimageController::class, 'update']);
+
+// Vendor routes
+// Route::apiResource('/vendors', VendorController::class);
+
+// Slider routes
+Route::apiResource('/sliders', SliderController::class);
 Route::post('/sliders/{id}', [SliderController::class, 'update']);
+
+Route::post('/cart', [CartController::class, 'store']);
+Route::post('/getPanierData', [CartController::class, 'getPanierData']);
+Route::post('/createOrder', [CartController::class, 'createOrder']);
+
+//Route::delete('/cart/{cartItemId}', [CartController::class, 'delete']);
