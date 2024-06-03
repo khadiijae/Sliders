@@ -12,10 +12,14 @@ class Category extends Model
         'name',
         'slug',
         'description',
-
         'count',
         'image_cloudinary',
         'image_public_id'
 
     ];
+
+    public function product()
+    {
+        return $this->hasMany(Product::class, 'categorie_id');
+    }
 }

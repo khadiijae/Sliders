@@ -9,6 +9,7 @@ class Product extends Model
     protected $fillable = [
         'id',
         'store_id',
+        'categorie_id',
         'name',
         'slug',
         'date_created',
@@ -58,7 +59,10 @@ class Product extends Model
     {
         return $this->hasMany(ProductImage::class, 'product_id');
     }
-
+    public function categorie()
+    {
+        return $this->belongsTo(Category::class, 'categorie_id');
+    }
     // public function store()
     //     {
     //         return $this->belongsTo(Store::class, 'store_id');

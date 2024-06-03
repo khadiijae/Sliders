@@ -27,6 +27,7 @@ class ProductController extends Controller
 
             $images = ProductImage::where('product_id', $product->id_product)->get();
             $product->product_images = $images;
+            $product->category_name = $product->categorie ? $product->categorie->name : null;
         });
 
         return response()->json($products);
@@ -43,7 +44,8 @@ class ProductController extends Controller
                 'status' => 'required|string|max:50',
                 'description' => 'nullable|string',
                 'price' => 'required|numeric|min:0',
-                'images.*' => 'nullable|image|mimes:jpeg,jpg,png|max:2048', // Validate multiple images
+                'images.*' => 'nullable|image|mimes:jpeg,jpg,png|max:2048', // .* Validate multiple images
+                'categorie_id' => 'required|exists:categories,id',
             ]);
 
 
@@ -90,6 +92,7 @@ class ProductController extends Controller
 
         $images = ProductImage::where('product_id', $product->id_product)->get();
         $product->product_images = $images;
+        $product->category_name = $product->categorie ? $product->categorie->name : null;
 
         return response()->json(['product' => $product]);
     }
@@ -109,7 +112,9 @@ class ProductController extends Controller
                 'status' => 'required|string|max:50',
                 'description' => 'nullable|string',
                 'price' => 'required|numeric|min:0',
-                'images.*' => 'nullable|image|mimes:jpeg,jpg,png|max:2048', // Validate multiple images
+                'images.*' => 'nullable|image|mimes:jpeg,jpg,png|max:2048', // .* Validate multiple images
+                'categorie_id' => 'required|exists:categories,id',
+
             ]);
 
 
@@ -156,5 +161,40 @@ class ProductController extends Controller
     {
         $product->delete();
         return response()->json(['message' => 'Product deleted successfully'], 200);
+    }
+
+    public function searchQuery(Request $request)
+    {
+        $query = Product::query();
+
+        if ($request->filled('name')) {
+            $query->where('name', 'LIKE', '%' . $request->name . '%');
+        }
+
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', $request->price_min);
+        }
+
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', $request->price_max);
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('categorie_id', $request->category_id);
+        }
+
+        if ($request->filled('rating_min')) {
+            $query->where('average_rating', '>=', $request->rating_min);
+        }
+
+        if ($request->filled('rating_max')) {
+            $query->where('average_rating', '<=', $request->rating_max);
+        }
+
+
+
+        $products = $query->get();
+
+        return response()->json($products);
     }
 }

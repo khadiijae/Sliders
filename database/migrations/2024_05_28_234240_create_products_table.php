@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('store_id')->nullable();
+            $table->unsignedBigInteger('categorie_id')->nullable();
+
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->timestamp('date_created')->nullable();
@@ -56,6 +58,7 @@ return new class extends Migration
             $table->decimal('average_rating', 3, 2)->nullable();
             $table->integer('review_count')->nullable();
             $table->timestamps();
+            $table->foreign('categorie_id')->references('id')->on('categories')->onDelete('cascade');
         });
     }
 

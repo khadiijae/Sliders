@@ -64,3 +64,4 @@ Route::post('/getPanierData', [CartController::class, 'getPanierData']);
 Route::post('/createOrder', [CartController::class, 'createOrder']);
 
 //Route::delete('/cart/{cartItemId}', [CartController::class, 'delete']);
+Route::get('search', [ProductController::class, 'searchQuery']);

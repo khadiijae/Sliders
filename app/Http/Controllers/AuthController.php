@@ -47,6 +47,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'ville' => 'required|string|max:255',
             'ipadresse' => 'required|string|max:255',
+            'role' => 'string|max:255',
             'password' => 'required|string|min:6',
         ]);
 
@@ -62,6 +63,7 @@ class AuthController extends Controller
             'email' => $request->email,
             'ville' => $request->ville,
             'ipadresse' => $ipData['ip'],
+            'role' => $request->role,
             'password' => Hash::make($request->password),
         ]);
 
