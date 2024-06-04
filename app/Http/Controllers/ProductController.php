@@ -7,6 +7,7 @@ use App\Models\ProductImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProductController extends Controller
 {
@@ -117,13 +118,16 @@ class ProductController extends Controller
 
             ]);
 
-
+            $product->product_images()->get()->each(function ($image) {
+                // Delete image from cldnry
+                Cloudinary::destroy($image->image_public_id);
+                $image->delete();
+            });
             $product->update($validatedData);
 
 
             if ($request->hasFile('images')) {
 
-                $product->product_images()->delete(); //delete old images
 
                 foreach ($request->file('images') as $image) {
                     $cloudinaryImage = $image->storeOnCloudinary('productImage');
@@ -157,10 +161,24 @@ class ProductController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Product $product)
+    public function destroy(Request $request, $id)
     {
-        $product->delete();
-        return response()->json(['message' => 'Product deleted successfully'], 200);
+        try {
+            // find imgaeid
+            $blog = Product::findOrFail($id);
+
+
+            $blog->product_images()->get()->each(function ($image) {
+                // Delete image from cldnry
+                Cloudinary::destroy($image->image_public_id);
+                $image->delete();
+            });
+            $blog->delete();
+            return response()->json(['message' => 'Product Deleted successfully'], 200);
+        } catch (\Exception $e) {
+            Log::error($e->getMessage());
+            return response()->json(['message' => 'Failed to delete Product ', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function searchQuery(Request $request)

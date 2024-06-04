@@ -5,19 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Slider extends Model
+class Blog extends Model
 {
     use HasFactory;
-
     protected $fillable = [
         'titre',
         'description',
-        'url',
+        'contenu',
 
     ];
 
-    public function sliderImages()
+    public function blogImages()
     {
-        return $this->hasMany(Sliderimages::class, 'slider_id');
+        return $this->hasMany(Blogimages::class, 'blog_id');
     }
 }

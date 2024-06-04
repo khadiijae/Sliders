@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\SliderController;
 use App\Http\Controllers\ProductController;
@@ -17,7 +18,6 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('login', 'login');
     Route::post('register', 'register');
     Route::post('logout', 'logout');
-    Route::post('refresh', 'refresh');
 });
 
 /*
@@ -58,6 +58,11 @@ Route::post('/productsimage/{id}', [ProductimageController::class, 'update']);
 // Slider routes
 Route::apiResource('/sliders', SliderController::class);
 Route::post('/sliders/{id}', [SliderController::class, 'update']);
+
+Route::apiResource('/blogs', BlogController::class);
+Route::post('/blogs/{id}', [BlogController::class, 'update']);
+
+
 
 Route::post('/cart', [CartController::class, 'store']);
 Route::post('/getPanierData', [CartController::class, 'getPanierData']);
