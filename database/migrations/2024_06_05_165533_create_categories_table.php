@@ -20,6 +20,7 @@ return new class extends Migration
             $table->integer('count')->nullable();
 
             $table->string('image_cloudinary')->nullable();
+            $table->string('image_public_id')->nullable();
             $table->timestamps();
         });
     }

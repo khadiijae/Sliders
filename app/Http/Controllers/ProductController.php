@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Vendor;
 use App\Models\Product;
+use App\Models\Category;
 use App\Models\ProductImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,23 +18,17 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        // Nombre de produits par page (vous pouvez ajuster cette valeur selon vos besoins)
         $perPage = 26;
 
-        // Récupérer les produits paginés
-        $products = Product::paginate($perPage);
+        $products = Product::with(['product_images', 'categorie'])->paginate($perPage);
 
-        // Parcourir chaque produit et obtenir ses images
-        $products->each(function ($product) {
-            // Charger les images associées à ce produit
-
-            $images = ProductImage::where('product_id', $product->id_product)->get();
-            $product->product_images = $images;
+        foreach ($products as $product) {
             $product->category_name = $product->categorie ? $product->categorie->name : null;
-        });
+        }
 
         return response()->json($products);
     }
+
 
     public function store(Request $request)
     {
@@ -41,6 +37,7 @@ class ProductController extends Controller
             // Validate the product data
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
+                'store_id' => 'required|exists:vendors,id',
                 'slug' => 'required|string|max:255|unique:products,slug',
                 'status' => 'required|string|max:50',
                 'description' => 'nullable|string',
@@ -85,17 +82,17 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::where('id', $id)->first();
+        $product = Product::with(['product_images', 'categorie', 'store'])->find($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
 
-        $images = ProductImage::where('product_id', $product->id_product)->get();
-        $product->product_images = $images;
-        $product->category_name = $product->categorie ? $product->categorie->name : null;
-
-        return response()->json(['product' => $product]);
+        return response()->json([
+            'product' => $product,
+            'category_detail' => $product->categorie,
+            'store_detail' => $product->store,
+        ]);
     }
 
     /**
@@ -183,7 +180,7 @@ class ProductController extends Controller
 
     public function searchQuery(Request $request)
     {
-        $query = Product::query();
+        $query =  Product::with('product_images');
 
         if ($request->filled('name')) {
             $query->where('name', 'LIKE', '%' . $request->name . '%');
@@ -198,21 +195,60 @@ class ProductController extends Controller
         }
 
         if ($request->filled('category_id')) {
-            $query->where('categorie_id', $request->category_id);
+            $query->where('category_id', $request->category_id);
         }
 
-        if ($request->filled('rating_min')) {
-            $query->where('average_rating', '>=', $request->rating_min);
-        }
-
-        if ($request->filled('rating_max')) {
-            $query->where('average_rating', '<=', $request->rating_max);
+        if ($request->filled('average_rating')) {
+            $query->where('average_rating', '=', $request->average_rating);
         }
 
 
+        //?Tri par nom/prix/rating
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->sort_by;
+            $sortOrder = $request->sort_order ?? 'asc';
 
-        $products = $query->get();
+            if (in_array($sortBy, ['name', 'price', 'average_rating'])) {
+                $query->orderBy($sortBy, $sortOrder);
+            }
+        }
+
+        $perPage = $request->input('per_page', 10); // 10 items
+        $products = $query->paginate($perPage);
 
         return response()->json($products);
+    }
+
+
+
+    public function getProductsByCategoryId($categoryId)
+    {
+        //check category exists
+        $category = Category::find($categoryId);
+        if (!$category) {
+            return response()->json(['error' => 'Category not found'], 404);
+        }
+
+        //  products with images
+        $products = Product::where('categorie_id', $categoryId)
+            ->with('product_images')
+            ->paginate(10);
+
+        return response()->json($products);
+    }
+
+
+    public function getProductsByStore($storeId)
+    {
+        $store = Vendor::find($storeId);
+        if (!$store) {
+            return response()->json(['message' => 'Store not found'], 404);
+        }
+
+        $products = Product::where('store_id', $storeId)
+            ->with('product_images')
+            ->paginate(5);
+
+        return response()->json(['product' => $products]);
     }
 }

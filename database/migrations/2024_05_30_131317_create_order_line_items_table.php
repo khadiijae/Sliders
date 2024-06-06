@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('image_url')->nullable();
             $table->string('parent_name')->nullable();
             $table->timestamps();
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
 
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
         });

@@ -40,43 +40,47 @@ class AuthController extends Controller
     }
     public function register(Request $request)
     {
-        $request->validate([
-            'firstname' => 'required|string|max:255',
-            'lastname' => 'required|string|max:255',
-            'phone' => 'required|string|max:15',
-            'email' => 'required|string|email|max:255|unique:users',
-            'ville' => 'required|string|max:255',
-            'ipadresse' => 'required|string|max:255',
-            'role' => 'string|max:255',
-            'password' => 'required|string|min:6',
-        ]);
+        try {
+            $request->validate([
+                'firstname' => 'required|string|max:255',
+                'lastname' => 'required|string|max:255',
+                'phone' => 'required|string|max:15',
+                'email' => 'required|string|email|max:255|unique:users',
+                'ville' => 'required|string|max:255',
+                'role' => 'string|max:255',
+                'password' => 'required|string|min:6',
+            ]);
 
 
-        $response = Http::get('https://api.ipify.org?format=json');
-        $ipData = $response->json();
+            $response = Http::get('https://api.ipify.org?format=json');
+            $ipData = $response->json();
 
 
-        $user = User::create([
-            'firstname' => $request->firstname,
-            'lastname' => $request->lastname,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'ville' => $request->ville,
-            'ipadresse' => $ipData['ip'],
-            'role' => $request->role,
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'firstname' => $request->firstname,
+                'lastname' => $request->lastname,
+                'phone' => $request->phone,
+                'email' => $request->email,
+                'ville' => $request->ville,
+                'ipadresse' => $ipData['ip'],
+                'role' => $request->role,
+                'password' => Hash::make($request->password),
+            ]);
 
-        $token = Auth::login($user);
-        return response()->json([
-            'status' => 'success',
-            'message' => 'User created successfully',
-            'user' => $user,
-            'authorisation' => [
-                'token' => $token,
-                'type' => 'bearer',
-            ]
-        ]);
+            $token = Auth::login($user);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'User created successfully',
+                'user' => $user,
+                'authorisation' => [
+                    'token' => $token,
+                    'type' => 'bearer',
+                ]
+            ]);
+        } catch (\Exception $e) {
+
+            return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
+        }
     }
 
 

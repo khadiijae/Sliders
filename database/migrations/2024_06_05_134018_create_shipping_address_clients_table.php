@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('shipping_adress_client', function (Blueprint $table) {
+        Schema::create('shipping_adress_clients', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('customer_id')->nullable();
+            $table->unsignedBigInteger('customer_id');
             $table->string('first_name')->nullable();
             $table->string('address_1')->nullable();
             $table->string('address_2')->nullable();
             $table->string('city')->nullable();
+            $table->string('country', 2)->default('MA');
             $table->string('phone')->nullable();
-
             $table->timestamps();
+
+            $table->foreign('customer_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 
@@ -29,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('shipping_adress_client');
+        Schema::dropIfExists('shipping_adress_clients');
     }
 };

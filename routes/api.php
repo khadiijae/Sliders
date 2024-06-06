@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\SliderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
@@ -67,6 +68,8 @@ Route::post('/blogs/{id}', [BlogController::class, 'update']);
 Route::post('/cart', [CartController::class, 'store']);
 Route::post('/getPanierData', [CartController::class, 'getPanierData']);
 Route::post('/createOrder', [CartController::class, 'createOrder']);
+Route::get('/getOrder/{orderId}', [CartController::class, 'getOrderDetails']);
 
 //Route::delete('/cart/{cartItemId}', [CartController::class, 'delete']);
 Route::get('search', [ProductController::class, 'searchQuery']);
+Route::get('userDetails', [UserController::class, 'userDetails']);

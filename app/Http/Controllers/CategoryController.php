@@ -23,31 +23,37 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        $validateRequest = $request->validate([
-            'name' => ['required', 'max:255'],
-            'slug' => ['required', 'max:255'],
-            'description' => 'required',
-            'count' => ['required', 'integer'],
-            'image' => ['required', 'image', 'max:2048'],
-        ]);
+        try {
+            $validateRequest = $request->validate([
+                'name' => ['required', 'max:255'],
+                'slug' => ['required', 'max:255'],
+                'description' => 'required',
+                'count' => ['required', 'integer'],
+                'image' => ['required', 'image', 'max:2048'],
+            ]);
 
-        $cloudinaryImage = $request->file('image')->storeOnCloudinary('categories');
-        $url = $cloudinaryImage->getSecurePath();
-        $public_id = $cloudinaryImage->getPublicId();
+            $cloudinaryImage = $request->file('image')->storeOnCloudinary('categories');
+            $url = $cloudinaryImage->getSecurePath();
+            $public_id = $cloudinaryImage->getPublicId();
 
-        $category = Category::create([
-            'name' => $request->name,
-            'slug' => $request->slug,
-            'description' => $request->description,
-            'count' => $request->count,
-            'image_cloudinary' => $url,
-            'image_public_id' => $public_id,
-        ]);
+            $category = Category::create([
+                'name' => $request->name,
+                'slug' => $request->slug,
+                'description' => $request->description,
+                'count' => $request->count,
+                'image_cloudinary' => $url,
+                'image_public_id' => $public_id,
+            ]);
 
-        return response()->json([
-            'message' => 'Category created successfully',
-            'category' => $category
-        ], 201);
+            return response()->json([
+                'message' => 'Category created successfully',
+                'category' => $category
+            ], 201);
+        } catch (\Exception $e) {
+
+            Log::error('Failed to create category: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to create category', 'error' => $e->getMessage()], 500);
+        }
     }
 
 
